@@ -1,0 +1,27 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2019-latest
+    container_name: template_sql
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Your_password123!"
+      MSSQL_PID: "Express"
+    ports:
+      - "14333:1433"
+    volumes:
+      - sql_data:/var/opt/mssql
+
+  api:
+    build: .
+    container_name: template_api
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://0.0.0.0:63180"
+      ConnectionStrings__SqlServer: "Server=db,1433;Database=TemplateMinimalApiDb;User Id=sa;Password=Your_password123!;Encrypt=False;TrustServerCertificate=True;MultipleActiveResultSets=True;"
+    ports:
+      - "63180:63180"
+    depends_on:
+      - db
+
+volumes:
+  sql_data:

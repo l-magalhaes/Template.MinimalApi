@@ -10,10 +10,10 @@ namespace Template.MinimalApi.Tests.Products
 {
     public class ProductServiceTest
     {
-        private readonly Mock<IProductRepository> _products = new();
+        private readonly Mock<IProductRepository> _productsRepository = new();
         private readonly Mock<IUnitOfWork> _uow = new();
 
-        private ProductService CreateSut() => new(_products.Object, _uow.Object);
+        private ProductService CreateSut() => new(_productsRepository.Object, _uow.Object);
 
         private static Product MakeProduct(Guid? id = null, string name = "Item X", decimal price = 123.45m)
         {
@@ -31,7 +31,7 @@ namespace Template.MinimalApi.Tests.Products
             var sut = CreateSut();
             var dto = new ProductDtos.Create("Produto A", 10m);
 
-            _products.Setup(x => x.NameExistsAsync(dto.Name, null, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.NameExistsAsync(dto.Name, null, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(false);
 
             var result = await sut.CreateAsync(dto);
@@ -40,7 +40,7 @@ namespace Template.MinimalApi.Tests.Products
             result.Name.Should().Be("Produto A");
             result.Price.Should().Be(10m);
 
-            _products.Verify(x => x.AddAsync(It.Is<Product>(p => p.Name == "Produto A" && p.Price == 10m),
+            _productsRepository.Verify(x => x.AddAsync(It.Is<Product>(p => p.Name == "Produto A" && p.Price == 10m),
                                              It.IsAny<CancellationToken>()), Times.Once);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -51,7 +51,7 @@ namespace Template.MinimalApi.Tests.Products
             var sut = CreateSut();
             var dto = new ProductDtos.Create("Duplicado", 20m);
 
-            _products.Setup(x => x.NameExistsAsync(dto.Name, null, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.NameExistsAsync(dto.Name, null, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(true);
 
             var act = async () => await sut.CreateAsync(dto);
@@ -59,7 +59,7 @@ namespace Template.MinimalApi.Tests.Products
             await act.Should().ThrowAsync<InvalidOperationException>()
                      .WithMessage("Product name 'Duplicado' already exists.");
 
-            _products.Verify(x => x.AddAsync(It.IsAny<Product>(), It.IsAny<CancellationToken>()), Times.Never);
+            _productsRepository.Verify(x => x.AddAsync(It.IsAny<Product>(), It.IsAny<CancellationToken>()), Times.Never);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -70,10 +70,10 @@ namespace Template.MinimalApi.Tests.Products
             var id = Guid.NewGuid();
             var entity = MakeProduct(id, "P1", 9.9m);
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(entity);
 
-            var result = await sut.GetAsync(id);
+            var result = await sut.GetByIdAsync(id);
 
             result.Should().NotBeNull();
             result!.Id.Should().Be(id);
@@ -87,10 +87,10 @@ namespace Template.MinimalApi.Tests.Products
             var sut = CreateSut();
             var id = Guid.NewGuid();
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync((Product?)null);
 
-            var result = await sut.GetAsync(id);
+            var result = await sut.GetByIdAsync(id);
 
             result.Should().BeNull();
         }
@@ -109,10 +109,10 @@ namespace Template.MinimalApi.Tests.Products
         };
             const int total = 10; 
 
-            _products.Setup(x => x.GetPagedAsync(query.Page, query.PageSize, query.Search, query.SortBy, query.Desc, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetPagedAsync(query.Page, query.PageSize, query.Search, query.SortBy, query.Desc, It.IsAny<CancellationToken>()))
                      .ReturnsAsync((items, total));
 
-            var result = await sut.GetPagedAsync(query);
+            var result = await sut.GetAllPagedAsync(query);
 
             result.Items.Should().HaveCount(3);
             result.Page.Should().Be(2);
@@ -131,10 +131,10 @@ namespace Template.MinimalApi.Tests.Products
             var items = new List<Product> { MakeProduct(Guid.NewGuid(), "A", 1m) };
             const int total = 10;
 
-            _products.Setup(x => x.GetPagedAsync(q.Page, q.PageSize, q.Search, q.SortBy, q.Desc, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetPagedAsync(q.Page, q.PageSize, q.Search, q.SortBy, q.Desc, It.IsAny<CancellationToken>()))
                      .ReturnsAsync((items, total));
 
-            var result = await sut.GetPagedAsync(q);
+            var result = await sut.GetAllPagedAsync(q);
 
             result.TotalPages.Should().Be(10);
             result.PageSize.Should().Be(0); 
@@ -148,13 +148,13 @@ namespace Template.MinimalApi.Tests.Products
             var id = Guid.NewGuid();
             var dto = new ProductDtos.Update("Novo", 11m);
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync((Product?)null);
 
             var result = await sut.UpdateAsync(id, dto);
 
             result.Should().BeNull();
-            _products.Verify(x => x.Update(It.IsAny<Product>()), Times.Never);
+            _productsRepository.Verify(x => x.Update(It.IsAny<Product>()), Times.Never);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -166,10 +166,10 @@ namespace Template.MinimalApi.Tests.Products
             var entity = MakeProduct(id, "Antigo", 5m);
             var dto = new ProductDtos.Update("Duplicado", 99m);
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(entity);
 
-            _products.Setup(x => x.NameExistsAsync(dto.Name, id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.NameExistsAsync(dto.Name, id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(true);
 
             var act = async () => await sut.UpdateAsync(id, dto);
@@ -177,7 +177,7 @@ namespace Template.MinimalApi.Tests.Products
             await act.Should().ThrowAsync<InvalidOperationException>()
                      .WithMessage("Product name 'Duplicado' already exists.");
 
-            _products.Verify(x => x.Update(It.IsAny<Product>()), Times.Never);
+            _productsRepository.Verify(x => x.Update(It.IsAny<Product>()), Times.Never);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -189,10 +189,10 @@ namespace Template.MinimalApi.Tests.Products
             var entity = MakeProduct(id, "Antigo", 5m);
             var dto = new ProductDtos.Update("Novo", 99m);
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(entity);
 
-            _products.Setup(x => x.NameExistsAsync(dto.Name, id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.NameExistsAsync(dto.Name, id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(false);
 
             var result = await sut.UpdateAsync(id, dto);
@@ -202,7 +202,7 @@ namespace Template.MinimalApi.Tests.Products
             result.Name.Should().Be("Novo");
             result.Price.Should().Be(99m);
 
-            _products.Verify(x => x.Update(It.Is<Product>(p => p.Name == "Novo" && p.Price == 99m)), Times.Once);
+            _productsRepository.Verify(x => x.Update(It.Is<Product>(p => p.Name == "Novo" && p.Price == 99m)), Times.Once);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
 
@@ -212,13 +212,13 @@ namespace Template.MinimalApi.Tests.Products
             var sut = CreateSut();
             var id = Guid.NewGuid();
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync((Product?)null);
 
             var ok = await sut.DeleteAsync(id);
 
             ok.Should().BeFalse();
-            _products.Verify(x => x.Remove(It.IsAny<Product>()), Times.Never);
+            _productsRepository.Verify(x => x.Remove(It.IsAny<Product>()), Times.Never);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
         }
 
@@ -229,13 +229,13 @@ namespace Template.MinimalApi.Tests.Products
             var id = Guid.NewGuid();
             var entity = MakeProduct(id, "A", 1m);
 
-            _products.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
+            _productsRepository.Setup(x => x.GetByIdAsync(id, It.IsAny<CancellationToken>()))
                      .ReturnsAsync(entity);
 
             var ok = await sut.DeleteAsync(id);
 
             ok.Should().BeTrue();
-            _products.Verify(x => x.Remove(It.Is<Product>(p => p == entity)), Times.Once);
+            _productsRepository.Verify(x => x.Remove(It.Is<Product>(p => p == entity)), Times.Once);
             _uow.Verify(x => x.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
         }
     }

@@ -18,11 +18,6 @@ public sealed class Product
 
     public void Update(string name, decimal price)
     {
-        if (string.IsNullOrWhiteSpace(name))
-            throw new ArgumentException("Name is required", nameof(name));
-        if (price < 0)
-            throw new ArgumentException("Price must be >= 0", nameof(price));
-
         Name = name.Trim();
         Price = price;
     }
